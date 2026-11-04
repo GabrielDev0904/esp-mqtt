@@ -1,18 +1,22 @@
+//*============================================|
+//* Projeto: projeto mqtt - em dupla           |
+//* Descrição: Alimentação de pet              |
+//* Autor: Gabriel Pedrão e Henrique Jordão    |
+//* Data: 04/11/2026                           |
+//* Componentes:                               |
+//* - ESP 32                                   |
+//* - LED                                      |
+//* - LCD 20x4                                 |
+//* - Botão                                    |
+//*============================================|
+
 #include <Arduino.h>
+#include <Botao.h>
 
-// put function declarations here:
-int myFunction(int, int);
-
-void setup() {
-  // put your setup code here, to run once:
-  int result = myFunction(2, 3);
+void setup()
+{
 }
 
-void loop() {
-  // put your main code here, to run repeatedly:
-}
-
-// put function definitions here:
-int myFunction(int x, int y) {
-  return x + y;
+void loop()
+{
 }
