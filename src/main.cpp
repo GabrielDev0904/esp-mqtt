@@ -14,6 +14,8 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
+#include <LiquidCrystal_I2C.h>
+#include "Botao.h"
 
 const char *ssid = "SENAI EDUCACIONAL";
 const char *password = "info@134";
@@ -22,11 +24,44 @@ const char *BROKER = "broker.emqx.io";
 const int PORTA = 1883;
 
 const char *TOPICO_SUB = "senai134/esp32/SmartPet/status";
+const char *TOPICO_PUB = "senai134/esp32/SmartPet/comando";
+
+const int PINO_LED = 5;
+const int PINO_BOTAO = 4;
+
+LiquidCrystal_I2C lcd(0x27, 20, 4);
+Botao btn(PINO_BOTAO);
 
 String id;
 
 WiFiClient espClient;
 PubSubClient mqtt(espClient);
+
+bool ledState = false;
+bool foodState = false;
+
+String lastFeedingTime = "--:--";
+String nextFeedingTime = "--:--";
+
+void atualizarLCD()
+{
+    lcd.clear();
+
+    lcd.setCursor(0, 0);
+    lcd.print("SMARTPET");
+
+    lcd.setCursor(0, 1);
+    lcd.print("LED: ");
+    lcd.print(ledState ? "Ligado" : "Desligado");
+
+    lcd.setCursor(0, 2);
+    lcd.print("Ultima: ");
+    lcd.print(lastFeedingTime);
+
+    lcd.setCursor(0, 3);
+    lcd.print("Proxima: ");
+    lcd.print(nextFeedingTime);
+}
 
 void callback(char *topic, byte *payload, unsigned int length)
 {
@@ -41,7 +76,6 @@ void callback(char *topic, byte *payload, unsigned int length)
         message += (char)payload[i];
     }
 
-    Serial.print("JSON recebido: ");
     Serial.println(message);
 
     JsonDocument doc;
@@ -50,19 +84,24 @@ void callback(char *topic, byte *payload, unsigned int length)
 
     if (error)
     {
-        Serial.print("Erro ao interpretar JSON: ");
+        Serial.print("Erro JSON: ");
         Serial.println(error.c_str());
         return;
     }
 
-    bool ledState = doc["ledState"].as<bool>();
-    bool foodState = doc["foodState"].as<bool>();
+    ledState = doc["ledState"] | false;
+    foodState = doc["foodState"] | false;
 
-    const char *lastFeedingTime = doc["lastFeedingTime"];
-    const char *nextFeedingTime = doc["nextFeedingTime"];
+    const char *ultima = doc["lastFeedingTime"] | "--:--";
+    const char *proxima = doc["nextFeedingTime"] | "--:--";
 
-    Serial.println("----------------------------");
-    Serial.println("       STATUS SMARTPET      ");
+    lastFeedingTime = ultima;
+    nextFeedingTime = proxima;
+
+    digitalWrite(PINO_LED, ledState ? HIGH : LOW);
+
+    atualizarLCD();
+
     Serial.println("----------------------------");
 
     Serial.print("LED: ");
@@ -105,9 +144,64 @@ void conectarMQTT()
     }
 }
 
+void enviarComandoAlimentacao()
+{
+    if (!mqtt.connected())
+    {
+        Serial.println("MQTT desconectado!");
+        return;
+    }
+
+    JsonDocument doc;
+
+    doc["ledState"] = true;
+    doc["foodState"] = true;
+
+    String message;
+
+    serializeJson(doc, message);
+
+    bool enviado = mqtt.publish(TOPICO_PUB, message.c_str());
+
+    if (enviado)
+    {
+        Serial.println("Comando enviado!");
+        Serial.println(message);
+
+        lcd.clear();
+
+        lcd.setCursor(0, 0);
+        lcd.print("SMARTPET");
+
+        lcd.setCursor(0, 1);
+        lcd.print("Solicitando");
+
+        lcd.setCursor(0, 2);
+        lcd.print("alimentacao...");
+    }
+    else
+    {
+        Serial.println("Erro ao enviar comando MQTT.");
+    }
+}
+
 void setup()
 {
     Serial.begin(115200);
+
+    pinMode(PINO_LED, OUTPUT);
+    digitalWrite(PINO_LED, LOW);
+
+    lcd.init();
+    lcd.backlight();
+
+    lcd.setCursor(0, 0);
+    lcd.print("SMARTPET");
+    lcd.setCursor(0, 1);
+    lcd.print("Conectando WiFi...");
+
+    btn.iniciar();
+    btn.intervaloDebounce(20);
 
     WiFi.begin(ssid, password);
 
@@ -121,6 +215,9 @@ void setup()
 
     Serial.println("\nWiFi conectado!");
 
+    lcd.clear();
+    lcd.print("WiFi conectado!");
+
     mqtt.setServer(BROKER, PORTA);
     mqtt.setCallback(callback);
 
@@ -131,10 +228,14 @@ void setup()
     Serial.println(id);
 
     conectarMQTT();
+
+    atualizarLCD();
 }
 
 void loop()
 {
+    btn.atualizar();
+
     if (WiFi.status() != WL_CONNECTED)
     {
         WiFi.reconnect();
@@ -146,4 +247,11 @@ void loop()
     }
 
     mqtt.loop();
+
+    if (btn.clicou())
+    {
+        Serial.println("Botao pressionado!");
+
+        enviarComandoAlimentacao();
+    }
 }
