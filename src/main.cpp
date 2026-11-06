@@ -1,13 +1,13 @@
 //*============================================|
-//* Projeto: projeto mqtt - em dupla           |
-//* Descrição: Alimentação de pet              |
-//* Autor: Gabriel Pedrão e Henrique Jordão    |
-//* Data: 04/11/2026                           |
-//* Componentes:                               |
-//* - ESP 32                                   |
-//* - LED                                      |
-//* - LCD 20x4                                 |
-//* - Botão                                    |
+//* Projeto: projeto mqtt - em dupla           |
+//* Descrição: Alimentação de pet              |
+//* Autor: Gabriel Pedrão e Henrique Jordão    |
+//* Data: 04/11/2026                           |
+//* Componentes:                               |
+//* - ESP 32                                   |
+//* - LED                                      |
+//* - LCD 20x4                                 |
+//* - Botão                                    |
 //*============================================|
 
 #include <Arduino.h>
@@ -26,8 +26,8 @@ const int PORTA = 1883;
 const char *TOPICO_SUB = "senai134/esp32/SmartPet/status";
 const char *TOPICO_PUB = "senai134/esp32/SmartPet/comando";
 
-const int PINO_LED = 5;
-const int PINO_BOTAO = 4;
+const int PINO_LED = 4;
+const int PINO_BOTAO = 7;
 
 LiquidCrystal_I2C lcd(0x27, 20, 4);
 Botao btn(PINO_BOTAO);
@@ -197,6 +197,7 @@ void setup()
 
     lcd.setCursor(0, 0);
     lcd.print("SMARTPET");
+
     lcd.setCursor(0, 1);
     lcd.print("Conectando WiFi...");
 
