@@ -55,11 +55,13 @@ void atualizarLCD()
     lcd.print(ledState ? "Ligado" : "Desligado");
 
     lcd.setCursor(0, 2);
-    lcd.print("Ultima: ");
-    lcd.print(lastFeedingTime);
+    lcd.print("Food: ");
+    lcd.print(foodState ? "Ativa" : "Inativa");
 
     lcd.setCursor(0, 3);
-    lcd.print("Proxima: ");
+    lcd.print("U:");
+    lcd.print(lastFeedingTime);
+    lcd.print(" P:");
     lcd.print(nextFeedingTime);
 }
 
@@ -89,8 +91,8 @@ void callback(char *topic, byte *payload, unsigned int length)
         return;
     }
 
-    ledState = doc["ledState"] | false;
-    foodState = doc["foodState"] | false;
+    foodState = doc["foodState"] | foodState;
+    ledState = doc["ledState"] | ledState;
 
     const char *ultima = doc["lastFeedingTime"] | "--:--";
     const char *proxima = doc["nextFeedingTime"] | "--:--";
@@ -98,11 +100,8 @@ void callback(char *topic, byte *payload, unsigned int length)
     lastFeedingTime = ultima;
     nextFeedingTime = proxima;
 
-    digitalWrite(PINO_LED, ledState ? HIGH : LOW);
-
+    digitalWrite(PINO_LED, ledState);
     atualizarLCD();
-
-    Serial.println("----------------------------");
 
     Serial.print("LED: ");
     Serial.println(ledState ? "Ligado" : "Desligado");
@@ -115,8 +114,6 @@ void callback(char *topic, byte *payload, unsigned int length)
 
     Serial.print("Proxima alimentacao: ");
     Serial.println(nextFeedingTime);
-
-    Serial.println("----------------------------");
 }
 
 void conectarMQTT()
@@ -130,9 +127,6 @@ void conectarMQTT()
             Serial.println("Conectado ao broker!");
 
             mqtt.subscribe(TOPICO_SUB);
-
-            Serial.print("Inscrito no topico: ");
-            Serial.println(TOPICO_SUB);
         }
         else
         {
@@ -141,47 +135,6 @@ void conectarMQTT()
 
             delay(2000);
         }
-    }
-}
-
-void enviarComandoAlimentacao()
-{
-    if (!mqtt.connected())
-    {
-        Serial.println("MQTT desconectado!");
-        return;
-    }
-
-    JsonDocument doc;
-
-    doc["ledState"] = true;
-    doc["foodState"] = true;
-
-    String message;
-
-    serializeJson(doc, message);
-
-    bool enviado = mqtt.publish(TOPICO_PUB, message.c_str());
-
-    if (enviado)
-    {
-        Serial.println("Comando enviado!");
-        Serial.println(message);
-
-        lcd.clear();
-
-        lcd.setCursor(0, 0);
-        lcd.print("SMARTPET");
-
-        lcd.setCursor(0, 1);
-        lcd.print("Solicitando");
-
-        lcd.setCursor(0, 2);
-        lcd.print("alimentacao...");
-    }
-    else
-    {
-        Serial.println("Erro ao enviar comando MQTT.");
     }
 }
 
@@ -225,9 +178,6 @@ void setup()
     id = "esp32-receptor-" +
          String((uint32_t)ESP.getEfuseMac(), HEX);
 
-    Serial.print("ID do receptor: ");
-    Serial.println(id);
-
     conectarMQTT();
 
     atualizarLCD();
@@ -251,8 +201,13 @@ void loop()
 
     if (btn.clicou())
     {
-        Serial.println("Botao pressionado!");
+        ledState = !ledState;
 
-        enviarComandoAlimentacao();
+        digitalWrite(PINO_LED, ledState ? HIGH : LOW);
+
+        Serial.print("LED: ");
+        Serial.println(ledState ? "Ligado" : "Desligado");
+
+        atualizarLCD();
     }
 }
