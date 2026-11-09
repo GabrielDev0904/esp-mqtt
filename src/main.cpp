@@ -10,6 +10,7 @@
 //* - Botão                                    |
 //*============================================|
 
+//* bibliotecas
 #include <Arduino.h>
 #include <WiFi.h>
 #include <PubSubClient.h>
@@ -17,32 +18,42 @@
 #include <LiquidCrystal_I2C.h>
 #include "Botao.h"
 
+//* WIFI
 const char *ssid = "SENAI EDUCACIONAL";
 const char *password = "info@134";
 
+//* BROKER
 const char *BROKER = "broker.emqx.io";
 const int PORTA = 1883;
 
+//* TOPICOS MQTT
 const char *TOPICO_SUB = "senai134/esp32/SmartPet/status";
 const char *TOPICO_PUB = "senai134/esp32/SmartPet/comando";
 
+//* PARTE FISICA
 const int PINO_LED = 4;
 const int PINO_BOTAO = 7;
 
+//* LIGANDO O LIQUIDCRYSTAL E O BOTAO
 LiquidCrystal_I2C lcd(0x27, 20, 4);
 Botao btn(PINO_BOTAO);
 
+//* id
 String id;
 
+//* WIFI CLIENT E MQTT
 WiFiClient espClient;
 PubSubClient mqtt(espClient);
 
+//* ESTADOS
 bool ledState = false;
 bool foodState = false;
 
+//* HORARIO BASE DO LCD
 String lastFeedingTime = "--:--";
 String nextFeedingTime = "--:--";
 
+//* VOID PARA ATUALIZAR O LCD
 void atualizarLCD()
 {
     lcd.clear();
@@ -65,6 +76,9 @@ void atualizarLCD()
     lcd.print(nextFeedingTime);
 }
 
+//* funciona como um "ouvinte": sempre que o seu dispositivo recebe uma 
+//* mensagem de um tópico que ele assinou, o broker MQTT envia os dados e o programa 
+//* interrompe brevemente o fluxo normal para executar esta função de forma automática.
 void callback(char *topic, byte *payload, unsigned int length)
 {
     Serial.println("\nMensagem recebida!");
@@ -116,6 +130,7 @@ void callback(char *topic, byte *payload, unsigned int length)
     Serial.println(nextFeedingTime);
 }
 
+//* conectando no MQTT
 void conectarMQTT()
 {
     while (!mqtt.connected())
@@ -138,6 +153,7 @@ void conectarMQTT()
     }
 }
 
+//* setup ligando os todas as partes
 void setup()
 {
     Serial.begin(115200);
@@ -175,14 +191,14 @@ void setup()
     mqtt.setServer(BROKER, PORTA);
     mqtt.setCallback(callback);
 
-    id = "esp32-receptor-" +
-         String((uint32_t)ESP.getEfuseMac(), HEX);
+    id = "esp32-receptor-" + String((uint32_t)ESP.getEfuseMac(), HEX);
 
     conectarMQTT();
 
     atualizarLCD();
 }
 
+//* loop para wifi e botao
 void loop()
 {
     btn.atualizar();
